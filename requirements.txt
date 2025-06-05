@@ -1,0 +1,17 @@
+torch,
+torchvision,
+pandas,
+Pillow,
+spacy,
+transformers,
+numpy,
+matplotlib,
+seaborn,
+tqdm,
+PyYAML,
+tqdm,
+matplotlib,
+seaborn
+
+
+-e .
