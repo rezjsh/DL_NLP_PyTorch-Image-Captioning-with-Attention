@@ -11,8 +11,8 @@ class DataIngestionPipeline:
     def run_pipeline(self):
         try:
             logger.info("Starting data ingestion pipeline")
-            extracted_path = self.data_ingestion.initiate_data_ingestion()
-            logger.info(f"Data ingestion completed successfully. Extracted data path: {extracted_path}")
+            self.data_ingestion.initiate_data_ingestion()
+            logger.info(f"Data ingestion completed successfully.")
         except Exception as e:
             logger.error(f"Error in data ingestion pipeline: {e}")
             raise e
@@ -26,4 +26,4 @@ if __name__ == '__main__':
         logger.info("Data ingestion pipeline completed successfully")
     except Exception as e:
         logger.error(f"Error in data ingestion pipeline: {e}")
-        raise ez
+        raise e
