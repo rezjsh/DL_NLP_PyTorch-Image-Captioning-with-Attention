@@ -134,13 +134,8 @@ class DataIngestion:
         print(f"Images are in: {os.path.join(self.config.download_dir, 'images')}")
         print(f"Captions are in: {os.path.join(self.config.download_dir, 'captions.txt')}")
 
-# --- Main execution ---
-if __name__ == "__main__":
-    downloader = DataIngestion()
-    downloader.download_flickr8k()
-
-    # After running this script, you can update your Config in the image captioning model:
-    # from your_script_name import Config # assuming your main script is image_captioning_attn.py
-    # Config.root_dir = "flickr8k_dataset/images"
-    # Config.caption_path = "flickr8k_dataset/captions.txt"
-    # Then run your image captioning model.
+    def initiate_data_ingestion(self):
+        try:
+            self.download_flickr8k()
+        except Exception as e:
+            raise e
