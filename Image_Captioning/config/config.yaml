@@ -1,0 +1,13 @@
+dataset:
+  download_dir: "data/01_raw"
+  images_zip_url: "https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_Dataset.zip"
+  captions_url: "https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_text.zip"
+  images_zip_name: "Flickr8k_Dataset.zip"
+  captions_zip_name: "Flickr8k_text.zip"
+  captions_file_name: "Flickr8k.token.txt"
+
+model:
+  model_name: "flickr8k_model"
+  model_path: "models/flickr8k_model.pth"
+  model_type: "resnet18"
+  model_weights: "resnet18_weights.pth"

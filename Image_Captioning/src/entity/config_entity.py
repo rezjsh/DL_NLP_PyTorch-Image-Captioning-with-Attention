@@ -1,0 +1,14 @@
+
+class DataIngestionConfig:
+    download_dir: str 
+    images_zip_url: str 
+    captions_url: str 
+    images_zip_name: str 
+    captions_zip_name: str 
+    captions_file_name: str 
+
+class ModelTrainingConfig:
+    model_name: str 
+    model_path: str 
+    model_type: str 
+    model_weights: str 
