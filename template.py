@@ -35,6 +35,7 @@ dirs_to_create = [
     f"{PROJECT_NAME}/src/pipeline",
     f"{PROJECT_NAME}/src/constants",
     f"{PROJECT_NAME}/src/config",
+    f"{PROJECT_NAME}/src/entity",
 ]
 
 # --- Define Files to Create ---
@@ -94,6 +95,9 @@ files_to_create = [
     f"{PROJECT_NAME}/src/config/configuration.py",
     # params.yaml
     f"{PROJECT_NAME}/params.yaml",
+    # Entity
+    f"{PROJECT_NAME}/src/entity/__init__.py",
+    f"{PROJECT_NAME}/src/entity/config_entity.py",
 ]
 
 # --- Basic Gitignore Content ---
