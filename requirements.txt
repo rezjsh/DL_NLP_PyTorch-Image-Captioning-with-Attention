@@ -1,17 +1,19 @@
-torch,
-torchvision,
-pandas,
-Pillow,
-spacy,
-transformers,
-numpy,
-matplotlib,
-seaborn,
-tqdm,
-PyYAML,
-tqdm,
-matplotlib,
+torch
+torchvision
+pandas
+Pillow
+spacy
+transformers
+numpy
+matplotlib
 seaborn
+tqdm
+PyYAML
+tqdm
+matplotlib
+seaborn
+requests
+python-box
 
 
 -e .
