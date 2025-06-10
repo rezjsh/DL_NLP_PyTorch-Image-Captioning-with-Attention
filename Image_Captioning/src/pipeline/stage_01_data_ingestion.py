@@ -1,6 +1,6 @@
 from src.components.data_ingestion import DataIngestion
 from src.utils.logging_setup import logger
-from Image_Captioning.src.config.configuration import ConfigurationManager
+from src.config.configuration import ConfigurationManager
 
 class DataIngestionPipeline:
     def __init__(self, config: ConfigurationManager):
@@ -19,11 +19,9 @@ class DataIngestionPipeline:
 
 if __name__ == '__main__':
     try:
-        logger.info("Starting data ingestion pipeline")
         config_manager_ingestion = ConfigurationManager()
         data_ingestion_pipeline = DataIngestionPipeline(config=config_manager_ingestion)
         data_ingestion_pipeline.run_pipeline()
-        logger.info("Data ingestion pipeline completed successfully")
     except Exception as e:
         logger.error(f"Error in data ingestion pipeline: {e}")
         raise e
