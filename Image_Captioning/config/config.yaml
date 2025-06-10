@@ -6,6 +6,19 @@ dataset:
   captions_zip_name: "Flickr8k_text.zip"
   captions_file_name: "Flickr8k.token.txt"
 
+validation:
+  dataset_base_dir: "data/01_raw/flickr8k"
+  images_dir: "data/01_raw/flickr8k/Flicker8k_Dataset"
+  captions_file: "data/01_raw/flickr8k/Flickr8k.token.txt"
+  validation_report_file: "reports/data_validation_report.json"
+  image_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".bmp"
+    - ".tiff"
+    - ".gif"
+
 model:
   model_name: "flickr8k_model"
   model_path: "models/flickr8k_model.pth"

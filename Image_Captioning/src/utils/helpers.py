@@ -1,9 +1,8 @@
 import json
-import logging
 import os
 from box import ConfigBox
 import yaml
-
+import logging
 
 def read_yaml_file(file_path: str)-> ConfigBox:
     """Read a YAML file and return its content as a ConfigBox object"""
