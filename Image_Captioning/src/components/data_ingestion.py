@@ -1,6 +1,4 @@
 import os
-import requests
-import zipfile
 import shutil
 from src.entity.config_entity import DataIngestionConfig
 from src.utils.logging_setup import logger
