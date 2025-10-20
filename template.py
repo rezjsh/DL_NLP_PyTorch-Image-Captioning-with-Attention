@@ -1,4 +1,3 @@
-import os
 import pathlib
 import logging
 
@@ -29,6 +28,7 @@ dirs_to_create = [
     f"{PROJECT_NAME}/src/data",
     f"{PROJECT_NAME}/src/features",
     f"{PROJECT_NAME}/src/models",
+    f"{PROJECT_NAME}/src/modules",
     f"{PROJECT_NAME}/src/evaluation",
     f"{PROJECT_NAME}/src/utils",
     f"{PROJECT_NAME}/src/components",
