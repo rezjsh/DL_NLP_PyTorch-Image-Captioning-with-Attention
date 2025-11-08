@@ -1,6 +1,6 @@
 # config.yaml
 dataset:
-  download_dir: "data/01_raw"
+  download_dir: "data"
   images_zip_url: "https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_Dataset.zip"
   captions_url: "https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_text.zip"
   images_zip_name: "Flickr8k_Dataset.zip"
@@ -9,13 +9,13 @@ dataset:
   train_images_file: "Flickr_8k.trainImages.txt"
   dev_images_file: "Flickr_8k.devImages.txt"
   test_images_file: "Flickr_8k.testImages.txt"
-  images_dir: "data/01_raw/Flicker8k_Dataset"
-  caption_path: "data/01_raw/captions.txt"
+  images_dir: "data/Flicker8k_Dataset"
+  caption_path: "data/captions.txt"
 
 validation:
-  dataset_base_dir: "data/01_raw/"
-  images_dir: "data/01_raw/Flicker8k_Dataset"
-  captions_file: "data/01_raw/captions.txt"
+  dataset_base_dir: "data/"
+  images_dir: "data/Flicker8k_Dataset"
+  captions_file: "data/captions.txt"
   validation_report_file: "reports/data_validation_report.json"
   image_extensions:
     - ".jpg"
@@ -26,12 +26,12 @@ validation:
     - ".gif"
 
 create_dataset:
-  dataset_base_dir: "data/01_raw/"
+  dataset_base_dir: "data/"
   train_images_file: "Flickr_8k.trainImages.txt"
   dev_images_file: "Flickr_8k.devImages.txt"
   test_images_file: "Flickr_8k.testImages.txt"
-  images_dir: "data/01_raw/Flicker8k_Dataset"
-  caption_path: "data/01_raw/captions.txt"
+  images_dir: "data/Flicker8k_Dataset"
+  caption_path: "data/captions.txt"
 
 training:
   model_dir: "artifacts/models"
