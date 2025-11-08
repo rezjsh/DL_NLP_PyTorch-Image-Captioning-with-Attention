@@ -3,7 +3,7 @@ from src.constants.constants import CONFIG_FILE_PATH, PARAMS_FILE_PATH
 from src.entity.config_entity import DecoderConfig, EncoderConfig, ImagePreprocessingConfig, TextPreprocessingConfig, DataIngestionConfig, DataValidationConfig, DataLoaderConfig, CaptioningDatasetConfig, EncoderDecoderConfig, ModelTrainingConfig
 from src.utils.helpers import create_directory, read_yaml_file
 from src.utils.logging_setup import logger
-from src.core.singlton import SingletonMeta
+from Image_Captioning.src.core.singleton import SingletonMeta
 
 class ConfigurationManager(metaclass=SingletonMeta):
     def __init__(self, config_file_path: str = CONFIG_FILE_PATH, params_file_path: str = PARAMS_FILE_PATH):
