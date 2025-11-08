@@ -15,10 +15,7 @@ PROJECT_NAME = "Image_Captioning"
 dirs_to_create = [
     PROJECT_NAME,  # Root project directory
     f"{PROJECT_NAME}/config",
-    f"{PROJECT_NAME}/data/01_raw",
-    f"{PROJECT_NAME}/data/02_interim",
-    f"{PROJECT_NAME}/data/03_processed",
-    f"{PROJECT_NAME}/data/04_external",
+    f"{PROJECT_NAME}/data/",
     f"{PROJECT_NAME}/docs",
     f"{PROJECT_NAME}/logs",
     f"{PROJECT_NAME}/models/evaluation",
