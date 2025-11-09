@@ -24,7 +24,7 @@ class CaptioningDataset(Dataset):
             split (str): The dataset split to load ('train', 'dev', or 'test').
         """
         self.config = config
-        self.vocab = text_preprocessor
+        self.text_preprocessor = text_preprocessor
         self.image_preprocessor = image_preprocessor
         self.split = split
 
@@ -110,13 +110,13 @@ class CaptioningDataset(Dataset):
             logger.warning(f"No image preprocessor provided. Falling back to basic ToTensor for {img_path}.")
             image_tensor = transforms.ToTensor()(pil_image)
 
-        # Numericalize caption using vocab
+        # Numericalize caption using text_preprocessor
         # 1. Tokenize and numericalize the main body of the caption
-        numericalized_caption = self.vocab.numericalize(caption_text)
+        numericalized_caption = self.text_preprocessor.numericalize(caption_text)
 
         # 2. Add <SOS> and <EOS> tokens
-        numericalized_caption.insert(0, self.vocab.stoi["<SOS>"])
-        numericalized_caption.append(self.vocab.stoi["<EOS>"])
+        numericalized_caption.insert(0, self.text_preprocessor.stoi["<SOS>"])
+        numericalized_caption.append(self.text_preprocessor.stoi["<EOS>"])
 
         # Convert list of integers to PyTorch tensor
         caption_tensor = torch.tensor(numericalized_caption, dtype=torch.long)
