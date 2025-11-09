@@ -76,15 +76,15 @@ if __name__ == '__main__':
         # --- Decoder Stage ---
         STAGE_NAME = "Decoder Stage"
         logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
-        decoder_pipeline = DecoderPipeline(config=config_manager)
+        decoder_pipeline = DecoderPipeline(config=config_manager, vocab_size=len(text_preprocessor))
         decoder = decoder_pipeline.run_pipeline()
         logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
 
         # --- Encoder-Decoder Stage ---
         STAGE_NAME = "Encoder-Decoder Stage"
         logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
-        encoder_decoder_pipeline = EncoderDecoderPipeline(config=config_manager, vocab_size=len(text_preprocessor), transformer_encoder=encoder, transformer_decoder=decoder)
-        model = encoder_decoder_pipeline.run_pipeline()
+        encoder_decoder_pipeline = EncoderDecoderPipeline(config_manager) 
+        model = encoder_decoder_pipeline.run_pipeline(vocab_size=len(text_preprocessor), transformer_encoder=encoder, transformer_decoder=decoder) 
         logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
 
         
