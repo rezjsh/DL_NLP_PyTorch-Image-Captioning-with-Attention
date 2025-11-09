@@ -1,9 +1,10 @@
+# src/config/configuration.py
 from pathlib import Path
 from src.constants.constants import CONFIG_FILE_PATH, PARAMS_FILE_PATH
 from src.entity.config_entity import DecoderConfig, EncoderConfig, ImagePreprocessingConfig, TextPreprocessingConfig, DataIngestionConfig, DataValidationConfig, DataLoaderConfig, CaptioningDatasetConfig, EncoderDecoderConfig, ModelTrainingConfig
 from src.utils.helpers import create_directory, read_yaml_file
 from src.utils.logging_setup import logger
-from Image_Captioning.src.core.singleton import SingletonMeta
+from src.core.singleton import SingletonMeta
 
 class ConfigurationManager(metaclass=SingletonMeta):
     def __init__(self, config_file_path: str = CONFIG_FILE_PATH, params_file_path: str = PARAMS_FILE_PATH):
@@ -14,7 +15,7 @@ class ConfigurationManager(metaclass=SingletonMeta):
         logger.info("Getting data ingestion config")
         config = self.config.dataset
         logger.info(f"Data ingestion config: {config}")
-        
+
         dirs_to_create = [config.download_dir]
         logger.info(f"Dirs to create: {dirs_to_create}")
         create_directory(dirs_to_create)
@@ -26,49 +27,55 @@ class ConfigurationManager(metaclass=SingletonMeta):
             captions_url=config.captions_url,
             images_zip_name=config.images_zip_name,
             captions_zip_name=config.captions_zip_name,
-            captions_file_name=config.captions_file_name
+            captions_file_name=config.captions_file_name,
+            train_images_file=config.train_images_file,
+            dev_images_file=config.dev_images_file,
+            test_images_file=config.test_images_file,
+            images_dir=config.images_dir,
+            caption_path=config.caption_path
         )
-        logger.info(f"Data ingestion config created: {data_ingestion_config}")
+        logger.info(f"DataIngestionConfig config created: {data_ingestion_config}")
+
         return data_ingestion_config
 
     def get_data_validation_config(self) -> DataValidationConfig:
         logger.info("Getting data validation config")
         config = self.config.validation
+        dataset_config = self.config.dataset # Get paths from dataset section
+        logger.info(f"Data validation config: {config}")
 
         dirs_to_create = [Path(config.validation_report_file).parent]
         create_directory(dirs_to_create)
 
         data_validation_config = DataValidationConfig(
-            dataset_base_dir=config.dataset_base_dir,
-            images_dir=config.images_dir,
-            captions_file=config.captions_file,
+            dataset_base_dir=Path(config.dataset_base_dir),
+            images_dir=Path(dataset_config.images_dir), # Use images_dir from dataset config
+            captions_file=dataset_config.caption_path, # Use the correct caption file path from dataset config
             image_extensions=config.image_extensions,
-            validation_report_file=config.validation_report_file
+            validation_report_file=Path(config.validation_report_file)
         )
-        logger.info(f"Data validation config created: {data_validation_config}")
-
+        logger.info(f"DataValidationConfig config created: {data_validation_config}")
         return data_validation_config
 
     def get_text_preprocessing_config(self) -> TextPreprocessingConfig:
         logger.info("Getting text preprocessing config")
         params = self.params.text_preprocessing
-        logger.info(f"Text preprocessing config: {params}")
+        logger.info(f"Text preprocessing config params: {params}")
 
         text_preprocessing_config = TextPreprocessingConfig(
+            freq_threshold=params.freq_threshold,
             remove_special_characters=params.remove_special_characters,
             lowercase=params.lowercase,
             remove_stopwords=params.remove_stopwords,
-            lemmatization=params.lemmatization,
-            freq_threshold=params.freq_threshold
+            lemmatization=params.lemmatization
         )
-        logger.info(f"Text preprocessing config created: {text_preprocessing_config}")
-
+        logger.info(f"TextPreprocessingConfig config created: {text_preprocessing_config}")
         return text_preprocessing_config
 
     def get_image_preprocessing_config(self) -> ImagePreprocessingConfig:
         logger.info("Getting image preprocessing config")
         params = self.params.image_preprocessing
-        logger.info(f"Image preprocessing config: {params}")
+        logger.info(f"Image preprocessing config params: {params}")
 
         image_preprocessing_config = ImagePreprocessingConfig(
             resize_size=params.resize_size,
@@ -76,8 +83,7 @@ class ConfigurationManager(metaclass=SingletonMeta):
             normalize_mean=params.normalize_mean,
             normalize_std=params.normalize_std
         )
-        logger.info(f"Image preprocessing config created: {image_preprocessing_config}")
-
+        logger.info(f"ImagePreprocessingConfig config created: {image_preprocessing_config}")
         return image_preprocessing_config
 
     def get_dataset_config(self) -> CaptioningDatasetConfig:
@@ -96,7 +102,8 @@ class ConfigurationManager(metaclass=SingletonMeta):
         logger.info(f"Dataset config created: {dataset_config}")
 
         return dataset_config
-    
+
+
     def get_data_loader_config(self) -> DataLoaderConfig:
         logger.info("Getting data loader config")
         params = self.params.data_loader
@@ -112,29 +119,11 @@ class ConfigurationManager(metaclass=SingletonMeta):
         logger.info(f"DataLoaderConfig config created: {data_loader_config}")
         return data_loader_config
 
-    def get_decoder_config(self) -> DecoderConfig:
-        logger.info("Getting Decoder config")
-        params = self.params.decoder
-        logger.info(f"Decoder config: {params}")
-
-        decoder_config = DecoderConfig(
-            vocab_size=params.vocab_size,
-            d_model=params.d_model,
-            max_len=params.max_len,
-            dropout=params.dropout,
-            ff_dim=params.ff_dim,
-            num_heads=params.num_heads,
-            num_transformer_layers=params.num_transformer_layers,
-
-        )
-        logger.info(f"Decoder config created: {decoder_config}")
-
-        return decoder_config
 
     def get_encoder_config(self) -> EncoderConfig:
-        logger.info("Getting Encoder config")
+        logger.info("Getting encoder config")
         params = self.params.encoder
-        logger.info(f"Encoder config: {params}")
+        logger.info(f"Encoder config params: {params}")
 
         encoder_config = EncoderConfig(
             cnn_model_name=params.cnn_model_name,
@@ -146,26 +135,49 @@ class ConfigurationManager(metaclass=SingletonMeta):
             fine_tune_cnn=params.fine_tune_cnn,
             fine_tune_transformer=params.fine_tune_transformer
         )
-        logger.info(f"Encoder config created: {encoder_config}")
+        logger.info(f"EncoderConfig config created: {encoder_config}")
         return encoder_config
 
+
+    def get_decoder_config(self, vocab_size: int) -> DecoderConfig: # vocab_size passed as argument
+        logger.info("Getting decoder config")
+        params = self.params.decoder
+        logger.info(f"Decoder config params: {params}")
+
+        decoder_config = DecoderConfig(
+            vocab_size=vocab_size, # Use the actual vocab_size
+            dropout=params.dropout,
+            d_model=params.d_model,
+            max_len=params.max_len,
+            num_heads=params.num_heads,
+            ff_dim=params.ff_dim,
+            num_transformer_layers=params.num_transformer_layers
+        )
+        logger.info(f"DecoderConfig config created: {decoder_config}")
+        return decoder_config
+
     def get_encoder_decoder_config(self) -> EncoderDecoderConfig:
-        logger.info("Getting EncoderDecoder config")
-        params = self.params.encoder_decoder
-        logger.info(f"EncoderDecoderConfig config: {params}")
+        logger.info("Getting encoder-decoder config")
+        params = self.params.encoder_decoder # Make sure this section exists in params.yaml if used directly
+        logger.info(f"Encoder-decoder config params: {params}")
 
         encoder_decoder_config = EncoderDecoderConfig(
-            vocab_size=params.vocab_size,
             encoder_type=params.encoder_type,
             cnn_backbone=params.cnn_backbone,
             d_model=params.d_model,
             fine_tune_cnn=params.fine_tune_cnn,
-            max_caption_length=params.max_caption_length
+            max_caption_length=params.max_caption_length,
+            num_encoder_transformer_layers=params.num_encoder_transformer_layers, # Added for clarity with encoder
+            num_decoder_transformer_layers=params.num_decoder_transformer_layers, # Added for clarity with decoder
+            num_heads=params.num_heads,
+            ff_dim=params.ff_dim,
+            dropout=params.dropout
         )
         logger.info(f"EncoderDecoderConfig config created: {encoder_decoder_config}")
 
         return encoder_decoder_config
-    
+
+
     def get_model_trainer_config(self) -> ModelTrainingConfig:
         logger.info("Getting model training config")
         config = self.config.training
