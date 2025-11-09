@@ -25,17 +25,22 @@ class ImagePreprocessor:
         Builds the torchvision.transforms.Compose pipeline.
         """
         transforms_list = []
-
+        # Apply the specified image transformations
+        # Resize
         if self.config.resize_size:
             transforms_list.append(transforms.Resize(tuple(self.config.resize_size)))
             logger.debug(f"Added Resize: {self.config.resize_size}")
 
+        # RandomCrop
         if self.config.random_crop_size:
             transforms_list.append(transforms.RandomCrop(tuple(self.config.random_crop_size)))
             logger.debug(f"Added RandomCrop: {self.config.random_crop_size}")
 
+        # ToTensor
         transforms_list.append(transforms.ToTensor())
+        logger.debug("Added ToTensor")
 
+        # Normalize
         if self.config.normalize_mean and self.config.normalize_std:
             if len(self.config.normalize_mean) == 3 and len(self.config.normalize_std) == 3:  # Ensure RGB
                 transforms_list.append(transforms.Normalize(mean=self.config.normalize_mean, std=self.config.normalize_std))
