@@ -5,7 +5,7 @@ import random
 import pandas as pd
 from PIL import Image
 from src.utils.logging_setup import logger
-from src.entity.config_entity import DataValidationConfig 
+from src.entity.config_entity import DataValidationConfig
 
 class DataValidation:
     """
@@ -23,8 +23,11 @@ class DataValidation:
         """
         self.config = config
         self.validation_report = {}
-        self.all_image_paths = [] 
+        self.all_image_paths = []
         logger.info(f"Validator initialized for dataset at: {self.config.dataset_base_dir}")
+        logger.info(f"Expected images directory: {self.config.images_dir}") # Log the expected path
+        logger.info(f"Expected captions file: {self.config.captions_file}") # Log the expected path
+
 
     def _check_directory_structure(self):
         """Checks if the main dataset directory and its 'images' subdirectory exist."""
@@ -38,7 +41,7 @@ class DataValidation:
             return False
         logger.info(f"Dataset base directory exists: {self.config.dataset_base_dir}")
 
-        
+
         if not os.path.exists(self.config.images_dir):
             logger.error(f"Images directory not found: {self.config.images_dir}")
             self.validation_report["directory_structure_check"] = {
@@ -56,8 +59,18 @@ class DataValidation:
     def _check_images(self):
         """Checks if the images directory contains files and if they are valid images."""
         logger.info("Checking Images")
+        # Ensure the directory exists before trying to list its contents
+        if not os.path.exists(self.config.images_dir):
+             logger.error(f"Images directory not found for checking: {self.config.images_dir}")
+             self.validation_report["image_validation_check"] = {
+                "status": "failed",
+                "message": f"Images directory not found for checking: {self.config.images_dir}"
+            }
+             return False
+
+
         image_files = [f for f in os.listdir(self.config.images_dir) if f.lower().endswith(tuple(self.config.image_extensions))]
-        
+
         if not image_files:
             logger.warning(f"No image files found in {self.config.images_dir}.")
             self.validation_report["image_validation_check"] = {
@@ -71,7 +84,7 @@ class DataValidation:
             "status": "passed",
             "message": f"Found {len(image_files)} potential image files in {self.config.images_dir}"
         }
-        
+
         # Check a sample of images for validity to avoid iterating through all if there are many
         sample_size = min(10, len(image_files))
         logger.info(f"Checking validity of {sample_size} sample images...")
@@ -84,7 +97,7 @@ class DataValidation:
                 valid_sample_count += 1
             except Exception as e:
                 logger.error(f"Could not open or verify sample image '{img_name}': {e}")
-                
+
         if valid_sample_count == sample_size:
             logger.info(f"All {sample_size} sample images are valid.")
             self.validation_report["image_validation_check"]["message"] = f"All {sample_size} sample images are valid."
@@ -111,13 +124,13 @@ class DataValidation:
         logger.info(f"Captions file exists: {self.config.captions_file}")
 
         try:
-            df = pd.read_csv(self.config.captions_file, delimiter='\t',header=None)
+            df = pd.read_csv(self.config.captions_file, delimiter='\t', header=None)
             df['image'] = df[0].apply(lambda x: x.split('#')[0])
             df['caption'] = df[1]
             df = df[['image', 'caption']]
             logger.info(f"Captions file loaded successfully. It contains {len(df)} entries.")
 
-            
+
             # Check for expected columns
             expected_columns = ['image', 'caption']
             if not all(col in df.columns for col in expected_columns):
@@ -169,16 +182,35 @@ class DataValidation:
 
     def _cross_validate_images_and_captions(self):
         """
-        Performs a cross-validation between image filenames in caption file
+        Performs a cross-validation between image filenames in captions.txt
         and actual image files present in the images directory.
         """
         logger.info("Cross-validating Images and Captions")
         try:
-            df = pd.read_csv(self.config.captions_file, delimiter='\t',header=None)
+            # Ensure captions file exists before trying to read it
+            if not os.path.exists(self.config.captions_file):
+                 logger.error(f"Captions file not found for cross-validation: {self.config.captions_file}")
+                 self.validation_report["cross_validation_check"] = {
+                    "status": "failed",
+                    "message": f"Captions file not found for cross-validation: {self.config.captions_file}"
+                }
+                 return False
+
+
+            df = pd.read_csv(self.config.captions_file, delimiter='\t', header=None)
             df['image'] = df[0].apply(lambda x: x.split('#')[0])
             df['caption'] = df[1]
             df = df[['image', 'caption']]
             captioned_images = set(df['image'].unique())
+
+            # Ensure the images directory exists before trying to list its contents
+            if not os.path.exists(self.config.images_dir):
+                logger.error(f"Images directory not found for cross-validation: {self.config.images_dir}")
+                self.validation_report["cross_validation_check"] = {
+                    "status": "failed",
+                    "message": f"Images directory not found for cross-validation: {self.config.images_dir}"
+                }
+                return False
 
             actual_image_files = {f for f in os.listdir(self.config.images_dir) if f.lower().endswith(tuple(self.config.image_extensions))}
 
@@ -186,40 +218,44 @@ class DataValidation:
             images_on_disk_not_in_captions = actual_image_files - captioned_images
 
             if not images_in_captions_not_on_disk and not images_on_disk_not_in_captions:
-                logger.info("All images referenced in caption file exist on disk, and vice-versa (for recognized image types).")
-                self.validation_report["image_validation_check"] = {
+                logger.info(f"All images referenced in {os.path.basename(self.config.captions_file)} exist on disk, and vice-versa (for recognized image types).")
+                self.validation_report["cross_validation_check"] = {
                     "status": "passed",
-                    "message": f"All sample images are valid."
+                    "message": f"All images referenced in {os.path.basename(self.config.captions_file)} exist on disk, and vice-versa."
                 }
                 return True
             else:
+                messages = []
                 if images_in_captions_not_on_disk:
-                    logger.warning(f"{len(images_in_captions_not_on_disk)} images refcaption file are NOT found on disk. Sample: {list(images_in_captions_not_on_disk)[:5]}")
-                    self.validation_report["image_validation_check"] = {
-                        "status": "warning",
-                        "message": f"{len(images_in_captions_not_on_disk)} images refcaption file are NOT found on disk."
-                    }
+                    message = f"{len(images_in_captions_not_on_disk)} images referenced in {os.path.basename(self.config.captions_file)} are NOT found on disk. Sample: {list(images_in_captions_not_on_disk)[:5]}"
+                    logger.warning(message)
+                    messages.append(message)
                 if images_on_disk_not_in_captions:
-                    logger.warning(f"{len(images_on_disk_not_in_captions)} images found on disk are NOT refcaption file. Sample: {list(images_on_disk_not_in_captions)[:5]}")
-                    self.validation_report["image_validation_check"] = {
-                        "status": "warning",
-                        "message": f"{len(images_on_disk_not_in_captions)} images found on disk are NOT refcaption file."
-                    }
+                    message = f"{len(images_on_disk_not_in_captions)} images found on disk are NOT referenced in {os.path.basename(self.config.captions_file)}. Sample: {list(images_on_disk_not_in_captions)[:5]}"
+                    logger.warning(message)
+                    messages.append(message)
+
+                self.validation_report["cross_validation_check"] = {
+                    "status": "warning",
+                    "message": " | ".join(messages)
+                }
                 return False
         except FileNotFoundError:
+            # This block is less likely to be reached now with the checks above, but kept for safety
             logger.error("Captions file or images directory not found for cross-validation.")
-            self.validation_report["image_validation_check"] = {
+            self.validation_report["cross_validation_check"] = {
                 "status": "failed",
                 "message": f"Captions file or images directory not found for cross-validation."
             }
             return False
         except Exception as e:
             logger.error(f"An error occurred during cross-validation: {e}")
-            self.validation_report["image_validation_check"] = {
+            self.validation_report["cross_validation_check"] = {
                 "status": "failed",
                 "message": f"An error occurred during cross-validation: {e}"
             }
             return False
+
 
     def _save_validation_report(self) -> bool:
         """Save validation report to a JSON file."""
@@ -244,31 +280,46 @@ class DataValidation:
             bool: True if all critical checks pass, False otherwise.
         """
         logger.info(f"Starting validation of dataset at: {self.config.dataset_base_dir}")
-        
+
         overall_status = True
 
         # Critical checks
-        if not self._check_directory_structure():
-            overall_status = False
-        
-        if not self._check_images():
-            overall_status = False
-
-        if not self._check_captions_file():
+        # Order matters here - check directory structure first
+        dir_structure_ok = self._check_directory_structure()
+        if not dir_structure_ok:
             overall_status = False
 
+        # Check captions file - also critical
+        captions_file_ok = self._check_captions_file()
+        if not captions_file_ok:
+             overall_status = False
+
+        # Check images - critical
+        images_ok = self._check_images()
+        if not images_ok:
+            overall_status = False
+
+
+        # Cross-validate images and captions - typically a warning, not critical failure for the whole pipeline
         self._cross_validate_images_and_captions()
-        
+
         is_saved = self._save_validation_report()
         if not is_saved:
            logger.warning("Failed to save validation report.")
 
         logger.info("Validation Summary")
-        if overall_status:
-            logger.info("All critical dataset validation checks passed!")
-            logger.info(f"Validation report: {self.validation_report}")
-        else:
-            logger.error("Some critical dataset validation checks failed. Please review errors above.")
-            logger.error(f"Validation report: {self.validation_report}")
 
-        return overall_status
+        # Re-evaluate overall status based on the results stored in the report
+        # This is more robust than relying solely on the boolean return values of the check methods
+        # if those methods also log status to the report.
+        # Let's check the report for 'failed' statuses in critical checks.
+        critical_failures = ["directory_structure_check", "image_validation_check", "captions_file_check"]
+        final_overall_status = all(self.validation_report.get(check, {}).get("status") != "failed" for check in critical_failures)
+
+        if final_overall_status:
+             logger.info("Final overall validation status: PASSED")
+        else:
+             logger.error("Final overall validation status: FAILED. See report for details.")
+
+
+        return final_overall_status # Return boolean status
