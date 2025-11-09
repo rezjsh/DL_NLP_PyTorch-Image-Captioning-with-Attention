@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from Image_Captioning.src.core.singleton import SingletonMeta
+from src.core.singleton import SingletonMeta
 
 class Logger(metaclass=SingletonMeta):
     """
