@@ -1,21 +1,27 @@
+# src/entity/config_entity.py
 from dataclasses import dataclass
 from pathlib import Path
 
 
 @dataclass
 class DataIngestionConfig:
-    download_dir: str 
-    images_zip_url: str 
-    captions_url: str 
-    images_zip_name: str 
-    captions_zip_name: str 
-    captions_file_name: str 
+    download_dir: Path
+    images_zip_url: str
+    captions_url: str
+    images_zip_name: str
+    captions_zip_name: str
+    captions_file_name: str
+    train_images_file: str
+    dev_images_file: str
+    test_images_file: str
+    images_dir: str
+    caption_path: str
 
 @dataclass
 class DataValidationConfig:
     dataset_base_dir: Path
     images_dir: Path
-    captions_file: str 
+    captions_file: str
     image_extensions: list[str]
     validation_report_file: Path
 
@@ -35,16 +41,15 @@ class ImagePreprocessingConfig:
     normalize_std: list[float]
 
 
-
 @dataclass
 class CaptioningDatasetConfig:
     images_dir: Path
     caption_path: Path
-    dataset_base_dir: Path        
-    train_images_file: str       
-    dev_images_file: str         
+    dataset_base_dir: Path
+    train_images_file: str
+    dev_images_file: str
     test_images_file: str
-   
+
 
 @dataclass
 class DataLoaderConfig:
@@ -58,7 +63,7 @@ class DataLoaderConfig:
 @dataclass
 class EncoderConfig:
     cnn_model_name: str
-    embed_dim: int 
+    embed_dim: int
     num_transformer_layers: int
     num_heads: int
     ff_dim: int
@@ -81,12 +86,14 @@ class DecoderConfig:
 class EncoderDecoderConfig:
     encoder_type: str
     cnn_backbone: str
-    fine_tune_cnn: bool
     d_model: int
+    fine_tune_cnn: bool
     max_caption_length: int
-    vocab_size: int
-
-
+    num_encoder_transformer_layers: int # Added for clarity with encoder
+    num_decoder_transformer_layers: int # Added for clarity with decoder
+    num_heads: int
+    ff_dim: int
+    dropout: float
 
 @dataclass
 class ModelTrainingConfig:
