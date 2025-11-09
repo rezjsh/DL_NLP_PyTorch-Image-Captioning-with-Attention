@@ -139,7 +139,7 @@ class ConfigurationManager(metaclass=SingletonMeta):
         return encoder_config
 
 
-    def get_decoder_config(self, vocab_size: int) -> DecoderConfig: # vocab_size passed as argument
+    def get_decoder_config(self, vocab_size: int) -> DecoderConfig:
         logger.info("Getting decoder config")
         params = self.params.decoder
         logger.info(f"Decoder config params: {params}")
