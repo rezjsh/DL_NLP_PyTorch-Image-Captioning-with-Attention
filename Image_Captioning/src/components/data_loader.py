@@ -34,10 +34,5 @@ class MyDataLoader:
                             num_workers=self.config.num_workers,
                             pin_memory=self.config.pin_memory,
                             drop_last=final_drop_last,
+                            persistent_workers=True,
                             collate_fn=self.collate_fn)
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, idx: int) -> Any:
-        return self.dataset[idx]
