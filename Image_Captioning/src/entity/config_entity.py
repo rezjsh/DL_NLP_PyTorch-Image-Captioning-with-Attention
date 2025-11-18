@@ -108,3 +108,12 @@ class ModelTrainingConfig:
     early_stop_patience: int
     gradient_accumulation_steps: int
     clip_grad_norm: float
+
+
+
+@dataclass(frozen=True)
+class ModelEvaluationConfig:
+    """Configuration for model evaluation."""
+    model_path: Path
+    report_dir: Path
+    beam_size: int
