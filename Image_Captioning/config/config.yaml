@@ -37,4 +37,8 @@ training:
   model_dir: "artifacts/models"
   model_name: "transformer_captioning_model.pth"
   report_dir: "artifacts/reports"
-  model_save_prefix: "transformer_caption_model" # Prefix for model filenames
+  model_save_prefix: "transformer_caption_model"
+
+inference:
+  model_path: "artifacts/models/transformer_caption_model_best_model.pth"
+  report_dir: "artifacts/reports/"
