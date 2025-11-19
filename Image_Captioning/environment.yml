@@ -1,25 +1,28 @@
 name: image-captioning
 channels:
   - pytorch
+  - conda-forge
   - defaults
 dependencies:
-  - python=3.8
+  - python=3.10
+  - pip
   - pytorch
   - torchvision
-  - cpuonly # Or your specific CUDA version e.g., cudatoolkit=11.3
-  - pandas
-  - pillow
-  - setuptools
-  - wheel
-  - spacy>=3.8.0,<3.9.0
-  - transformers
-  - numpy
-  - matplotlib
-  - seaborn
-  - tqdm
-  - pyyaml
-  - requests
-  - python-box
-  - pip
+  - cudatoolkit=11.8 # remove if CPU-only, or adjust to your CUDA version
   - pip:
+      - Flask>=2.3,<3.0
+      - Werkzeug>=2.3,<3.0
+      - pandas
+      - numpy
+      - Pillow
+      - matplotlib
+      - seaborn
+      - tqdm
+      - PyYAML
+      - requests
+      - python-box
+      - spacy>=3.8.0,<3.9.0
       - en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+      - transformers
+      - setuptools
+      - wheel
