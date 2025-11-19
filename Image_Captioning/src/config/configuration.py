@@ -1,7 +1,7 @@
 # src/config/configuration.py
 from pathlib import Path
 from src.constants.constants import CONFIG_FILE_PATH, PARAMS_FILE_PATH
-from src.entity.config_entity import DecoderConfig, EncoderConfig, ImagePreprocessingConfig, TextPreprocessingConfig, DataIngestionConfig, DataValidationConfig, DataLoaderConfig, CaptioningDatasetConfig, EncoderDecoderConfig, ModelTrainingConfig
+from src.entity.config_entity import DecoderConfig, EncoderConfig, ImagePreprocessingConfig, ModelEvaluationConfig, TextPreprocessingConfig, DataIngestionConfig, DataValidationConfig, DataLoaderConfig, CaptioningDatasetConfig, EncoderDecoderConfig, ModelTrainingConfig
 from src.utils.helpers import create_directory, read_yaml_file
 from src.utils.logging_setup import logger
 from src.core.singleton import SingletonMeta
@@ -139,7 +139,7 @@ class ConfigurationManager(metaclass=SingletonMeta):
         return encoder_config
 
 
-    def get_decoder_config(self, vocab_size: int) -> DecoderConfig:
+    def get_decoder_config(self, vocab_size: int) -> DecoderConfig: # vocab_size passed as argument
         logger.info("Getting decoder config")
         params = self.params.decoder
         logger.info(f"Decoder config params: {params}")
@@ -202,3 +202,19 @@ class ConfigurationManager(metaclass=SingletonMeta):
         )
         logger.info(f"ModelTrainingConfig config created: {model_training_config}")
         return model_training_config
+
+    def get_model_evaluation_config(self) -> ModelEvaluationConfig:
+        """Constructs the ModelEvaluationConfig object."""
+        logger.info("Getting model evaluation config")
+        config = self.config.inference
+        params = self.params.inference
+
+        create_directory([config.report_dir])
+
+        model_evaluation_config = ModelEvaluationConfig(
+            model_path=Path(config.model_path),
+            report_dir=Path(config.report_dir),
+            beam_size=params.beam_size
+        )
+        logger.info(f"ModelEvaluationConfig created: {model_evaluation_config}")
+        return model_evaluation_config
