@@ -1,6 +1,6 @@
 # DL_NLP_PyTorch-Image-Captioning-with-Attention
 
-Image Captioning system implemented in PyTorch with a CNN+Transformer architecture and attention. The project includes a modular training pipeline, configuration-driven setup, and a lightweight Flask web app for interactive caption generation.
+Image Captioning system implemented in PyTorch with a CNN+Transformer architecture and attention. The project includes a modular training pipeline, configuration-driven setup, and a Flask web app for interactive caption generation with a modern UI.
 
 Status: active development. Interfaces may change; refer to the repo’s issues for known gaps.
 
@@ -22,7 +22,7 @@ Status: active development. Interfaces may change; refer to the repo’s issues 
 - Python, PyTorch, TorchVision
 - spaCy for text processing
 - Transformers (Hugging Face)
-- Flask for web app
+- Flask for web app (with a modern, responsive UI)
 - Pandas, NumPy, Matplotlib, Seaborn, TQDM
 
 ---
