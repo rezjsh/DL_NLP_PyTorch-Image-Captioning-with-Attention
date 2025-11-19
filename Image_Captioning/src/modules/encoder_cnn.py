@@ -107,3 +107,21 @@ class EncoderCNN(nn.Module):
             raise RuntimeError(f"Unexpected feature tensor dimension from CNN backbone: {features.dim()}. Expected 2 or 4.")
 
         return features
+
+
+
+
+
+
+# # Mock Test for EncoderCNN (using ResNet50 for spatial features)
+# cnn_encoder = EncoderCNN(model_name="resnet50")
+# batch_size = 4
+# input_image = torch.randn(batch_size, 3, 224, 224)
+
+# output_features = cnn_encoder(input_image)
+
+# # Expected output: (Batch, Num_Pixels (7*7=49), Channels (2048))
+# expected_shape = (batch_size, 49, 2048)
+
+# assert output_features.shape == expected_shape, f"EncoderCNN output shape mismatch. Expected {expected_shape}, Got {output_features.shape}"
+# print(f"\n✅ EncoderCNN test (ResNet50) succeeded. Final shape: {output_features.shape}")
