@@ -44,7 +44,7 @@ encoder_decoder: # New section for overall model config, consolidating some para
   cnn_backbone: "efficientnet_b3" # This should ideally be linked to encoder.cnn_model_name
   d_model: 1280 # This should be the common dimension for encoder and decoder
   fine_tune_cnn: True
-  max_caption_length: 128 # Max length for decoder input/output padding
+  max_caption_length: 64 # Max length for decoder input/output padding
   num_encoder_transformer_layers: 3 # To match encoder.num_transformer_layers
   num_decoder_transformer_layers: 3 # To match decoder.num_transformer_layers
   num_heads: 8 # To match encoder.num_heads and decoder.num_heads
@@ -54,10 +54,13 @@ encoder_decoder: # New section for overall model config, consolidating some para
 training:
   model_name: "transformer_captioning_model"
   model_save_prefix: "transformer_caption_model"
-  num_epochs: 15
-  learning_rate: 0.001
+  num_epochs: 30
+  learning_rate: 0.0001
   weight_decay: 0.0001
   save_every_epochs: 2
-  early_stop_patience: 3
+  early_stop_patience: 5
   gradient_accumulation_steps: 1 # Number of batches to accumulate gradients over
   clip_grad_norm: 1.0 # Gradient clipping value (0 for no clipping)
+
+inference:
+  beam_size: 5
