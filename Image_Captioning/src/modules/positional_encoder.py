@@ -6,7 +6,7 @@ from src.utils.logging_setup import logger
 
 class PositionalEncoding(nn.Module):
     """
-    Standard sinusoidal positional encoding.
+    Standard sinusoidal positional encoding from "Attention Is All You Need".
     Adds information about the position of the tokens in the sequence to the embeddings.
     The positional encodings are pre-computed up to `max_len`. If an input sequence
     is longer than `max_len`, a runtime error will occur, so `max_len` should be
