@@ -41,19 +41,16 @@ class TextPreprocessor:
             logger.warning(f"Input to tokenizer_eng is not a string: {type(text)}. Attempting conversion.")
             text = str(text) # Attempt to convert to string
 
-        text = text.lower() if self.config.lowercase else text # Convert to lowercase
+        text = text.lower() if self.config.lowercase else text
         if self.config.remove_special_characters:
             text = re.sub(r'[^\w\s]', '', text) # Remove non-alphanumeric characters
 
-        # Tokenize
         tokens = [token.text for token in self.spacy_eng.tokenizer(text)]
 
-        # Remove stopwords
         if self.config.remove_stopwords:
             # spaCy's default stop words list
             tokens = [token for token in tokens if token not in self.spacy_eng.Defaults.stop_words]
 
-        # Perform lemmatization
         if self.config.lemmatization:
             # Re-process with nlp to get lemma_ attribute
             doc = self.spacy_eng(" ".join(tokens))
@@ -173,3 +170,39 @@ class TextPreprocessor:
         except Exception as e:
             logger.error(f"Failed to load vocabulary from {path}: {e}")
             raise
+
+
+
+# #@dataclass
+# class TextPreprocessingConfig:
+#     freq_threshold: int = 1
+#     lowercase: bool = True
+#     remove_special_characters: bool = True
+#     remove_stopwords: bool = True
+#     lemmatization: bool = True
+# # Example test run (add in a separate test script or main)
+# if __name__ == "__main__":
+
+#     sample_sentences = [
+#         "The quick brown fox jumps over the lazy dog.",
+#         "Deep learning models can generate captions for images.",
+#         "Preprocessing text is essential for NLP tasks."
+#     ]
+#     config = TextPreprocessingConfig()
+#     tp = TextPreprocessor(config)
+#     tp.build_vocabulary(sample_sentences)
+
+#     for sentence in sample_sentences:
+#         print(f"Original: {sentence}")
+#         print(f"Tokens: {tp.tokenizer_eng(sentence)}")
+#         nums = tp.numericalize(sentence)
+#         print(f"Numericalized: {nums}")
+#         print(f"Denumericalized: {tp.denumericalize(nums)}")
+#         print()
+
+#     # Save and load vocab test
+#     tp.save_vocab('vocab_test.json')
+#     tp2 = TextPreprocessor(config)
+#     tp2.load_vocab('vocab_test.json')
+
+#     print("Vocabulary loaded in new instance:", tp2.stoi)
