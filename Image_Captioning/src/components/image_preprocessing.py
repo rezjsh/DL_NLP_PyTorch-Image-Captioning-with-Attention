@@ -25,29 +25,24 @@ class ImagePreprocessor:
         Builds the torchvision.transforms.Compose pipeline.
         """
         transforms_list = []
-        # Apply the specified image transformations
-        # Resize
+
         if self.config.resize_size:
             transforms_list.append(transforms.Resize(tuple(self.config.resize_size)))
             logger.debug(f"Added Resize: {self.config.resize_size}")
 
-        # RandomCrop
         if self.config.random_crop_size:
             transforms_list.append(transforms.RandomCrop(tuple(self.config.random_crop_size)))
             logger.debug(f"Added RandomCrop: {self.config.random_crop_size}")
 
-        # ToTensor
         transforms_list.append(transforms.ToTensor())
-        logger.debug("Added ToTensor")
 
-        # Normalize
         if self.config.normalize_mean and self.config.normalize_std:
             if len(self.config.normalize_mean) == 3 and len(self.config.normalize_std) == 3:  # Ensure RGB
                 transforms_list.append(transforms.Normalize(mean=self.config.normalize_mean, std=self.config.normalize_std))
                 logger.debug(f"Added Normalize: mean={self.config.normalize_mean}, std={self.config.normalize_std}")
             else:
                 logger.warning("Normalize mean/std are not 3-element lists. Skipping normalization.")
-        
+
         return transforms.Compose(transforms_list)
 
 
@@ -64,7 +59,7 @@ class ImagePreprocessor:
         if not isinstance(pil_image, Image.Image):
             logger.error(f"Input is not a PIL Image. Got: {type(pil_image)}")
             raise TypeError("Input to preprocess_image must be a PIL Image.")
-        
+
         try:
             transformed_tensor = self.transform_pipeline(pil_image)
             logger.debug(f"Image transformed to tensor of shape: {transformed_tensor.shape}")
@@ -73,3 +68,23 @@ class ImagePreprocessor:
             logger.error(f"Error applying image transformations: {e}", exc_info=True)
             raise
 
+
+# if __name__ == "__main__":
+
+#     config = ImagePreprocessingConfig(
+#         resize_size=(256, 256),
+#         random_crop_size=(224, 224),
+#         normalize_mean=[0.485, 0.456, 0.406],
+#         normalize_std=[0.229, 0.224, 0.225],
+#     )
+
+#     from PIL import Image
+#     dummy_image = Image.new('RGB', (256, 256), color='black')
+#     logger.info(f"Dummy image created with size: {dummy_image.size}")
+
+#     preprocessor = ImagePreprocessor(config)
+#     tensor = preprocessor.preprocess_image(dummy_image)
+
+#     logger.info(f"Transformed tensor shape: {tensor.shape}")
+#     logger.info(f"Tensor dtype: {tensor.dtype}")
+#     logger.info(f"Sample pixel value (channel 0,0,0): {tensor[0, 0, 0].item():.4f}")
