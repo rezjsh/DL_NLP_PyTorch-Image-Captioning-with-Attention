@@ -1,8 +1,8 @@
-# src/components/decoder.py (modified, focusing on generate_caption and related methods)
+# src/components/decoder.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple
+from typing import Any, List, Tuple, Union
 from src.modules.positional_encoder import PositionalEncoding
 from src.entity.config_entity import DecoderConfig
 from src.utils.logging_setup import logger
@@ -189,4 +189,4 @@ class TransformerDecoder(nn.Module):
                 caption_words = [vocab.itos[word_id] for word_id in best_sequence
                                 if word_id not in [pad_idx, sos_idx, eos_idx]]
 
-                return caption_words, torch.empty(0) # Return empty attention alphas for now
+                return caption_words, torch.empty(0) # Return empty attention alphas
