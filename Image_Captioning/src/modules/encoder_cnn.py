@@ -1,127 +1,79 @@
-from src.utils.logging_setup import logger
+import torch
 import torch.nn as nn
 import torchvision.models as models
-import torch
-
+from typing import Tuple, Optional
+from src.utils.logging_setup import logger
 
 class EncoderCNN(nn.Module):
     """
-    CNN Encoder to extract features from input images using various pre-trained backbones.
-    Removes the final classification layer to get spatial features.
-
-    Attributes:
-        encoder_dim (int): The dimension of the output features from the CNN backbone.
-        output_spatial_size (tuple): The spatial dimensions (H, W) of the feature maps.
-        cnn_backbone (nn.Module): The loaded and modified pre-trained CNN model.
+    CNN Backbone to extract spatial features.
+    Includes Adaptive Pooling to ensure fixed sequence lengths for the Transformer.
     """
-    def __init__(self, model_name: str) -> None:
-        """
-        Initializes the CNN encoder by loading a pre-trained model based on model_name.
-
-        Args:
-            model_name (str): The name of the pre-trained model to load (e.g., "resnet50",
-                              "vgg16", "efficientnet_b0").
-        """
+    def __init__(self, model_name: str, fixed_spatial_size: Optional[Tuple[int, int]] = (7, 7)):
         super(EncoderCNN, self).__init__()
 
-        # Dictionary to map model names to their respective loading functions, weights,
-        # and a lambda function to extract the feature backbone.
-        # The lambda function should typically remove the classification head.
-        self.model_configs = {
-            # ResNets: Remove the last two layers (AvgPool and FC)
-            "resnet18": (models.resnet18, models.ResNet18_Weights.DEFAULT, lambda m: nn.Sequential(*list(m.children())[:-2])),
-            "resnet34": (models.resnet34, models.ResNet34_Weights.DEFAULT, lambda m: nn.Sequential(*list(m.children())[:-2])),
-            "resnet50": (models.resnet50, models.ResNet50_Weights.DEFAULT, lambda m: nn.Sequential(*list(m.children())[:-2])),
-            "resnet101": (models.resnet101, models.ResNet101_Weights.DEFAULT, lambda m: nn.Sequential(*list(m.children())[:-2])),
-            "resnet152": (models.resnet152, models.ResNet152_Weights.DEFAULT, lambda m: nn.Sequential(*list(m.children())[:-2])),
+        # 1. Load Backbone
+        self.backbone, self.out_channels = self._get_backbone(model_name)
 
-            # VGGs: Remove the classifier (last layer)
-            "vgg16": (models.vgg16, models.VGG16_Weights.DEFAULT, lambda m: m.features),
-            "vgg19": (models.vgg19, models.VGG19_Weights.DEFAULT, lambda m: m.features),
+        # 2. Adaptive Pooling
+        # This enforces a specific output grid (e.g., 7x7) regardless of input image size.
+        # This is vital for Transformer memory stability.
+        self.avg_pool = nn.AdaptiveAvgPool2d(fixed_spatial_size) if fixed_spatial_size else nn.Identity()
 
-            # EfficientNets: Remove the classifier
-            "efficientnet_b0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT, lambda m: m.features),
-            "efficientnet_b1": (models.efficientnet_b1, models.EfficientNet_B1_Weights.DEFAULT, lambda m: m.features),
-            "efficientnet_b2": (models.efficientnet_b2, models.EfficientNet_B2_Weights.DEFAULT, lambda m: m.features),
-            "efficientnet_b3": (models.efficientnet_b3, models.EfficientNet_B3_Weights.DEFAULT, lambda m: m.features),
-            "efficientnet_b4": (models.efficientnet_b4, models.EfficientNet_B4_Weights.DEFAULT, lambda m: m.features),
-            "efficientnet_b5": (models.efficientnet_b5, models.EfficientNet_B5_Weights.DEFAULT, lambda m: m.features),
+        self.output_spatial_size = fixed_spatial_size
+
+        logger.info(f"EncoderCNN initialized: {model_name}, Output Channels: {self.out_channels}, Grid: {fixed_spatial_size}")
+
+    def _get_backbone(self, model_name: str):
+        """Helper to load model and remove classification heads."""
+        base_models = {
+            "resnet18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
+            "resnet34": (models.resnet34, models.ResNet34_Weights.DEFAULT),
+            "resnet50": (models.resnet50, models.ResNet50_Weights.DEFAULT),
+            "resnet101": (models.resnet101, models.ResNet101_Weights.DEFAULT),
+            "efficientnet_b0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
+            "efficientnet_b3": (models.efficientnet_b3, models.EfficientNet_B3_Weights.DEFAULT),
         }
 
-        if model_name not in self.model_configs:
-            supported_models = ", ".join(self.model_configs.keys())
-            logger.error(f"Unsupported model name: '{model_name}'. Supported models are: {supported_models}")
-            raise ValueError(f"Unsupported model name: '{model_name}'. "
-                             f"Please choose from: {supported_models}")
+        if model_name not in base_models:
+            raise ValueError(f"Model {model_name} not supported. Choose from {list(base_models.keys())}")
 
-        model_func, weights, feature_extractor_lambda = self.model_configs[model_name]
-        logger.info(f"Loading pre-trained {model_name} model with {weights.name} weights.")
-        full_model = model_func(weights=weights)
-        self.cnn_backbone = feature_extractor_lambda(full_model)
+        model_fn, weights = base_models[model_name]
+        raw_model = model_fn(weights=weights)
 
-        # Determine output dimensions by passing a dummy input
-        # Assuming typical image input size of (1, 3, 224, 224)
-        dummy_input = torch.randn(1, 3, 224, 224)
-        with torch.no_grad():
-            dummy_output = self.cnn_backbone(dummy_input)
-
-        if dummy_output.dim() == 4: # (B, C, H_out, W_out)
-            self.encoder_dim = dummy_output.size(1)  # C
-            self.output_spatial_size = (dummy_output.size(2), dummy_output.size(3)) # H_out, W_out
-            logger.debug(f"CNN backbone {model_name} output feature map shape: {dummy_output.shape}")
-        elif dummy_output.dim() == 2: # (B, C) - already flattened by the backbone
-            self.encoder_dim = dummy_output.size(1) # C
-            self.output_spatial_size = (1, 1) # Represents a single "pixel" for flattened output
-            logger.debug(f"CNN backbone {model_name} output flattened features shape: {dummy_output.shape}")
+        if "resnet" in model_name:
+            # Remove AvgPool and FC layer
+            modules = list(raw_model.children())[:-2]
+            backbone = nn.Sequential(*modules)
+            out_channels = raw_model.fc.in_features
+        elif "efficientnet" in model_name:
+            # EfficientNet .features returns the feature maps directly
+            backbone = raw_model.features
+            # Dummy pass to find out_channels
+            with torch.no_grad():
+                dummy = backbone(torch.randn(1, 3, 224, 224))
+            out_channels = dummy.shape[1]
         else:
-            logger.error(f"Unexpected dummy output dimension for {model_name}: {dummy_output.dim()}. Expected 2 or 4.")
-            raise RuntimeError(f"Unexpected output dimension from CNN backbone: {dummy_output.dim()}")
+            raise NotImplementedError(f"Logic for {model_name} not implemented yet.")
 
-        logger.info(f"EncoderCNN initialized with {model_name} backbone. "
-                    f"Output features dimension: {self.encoder_dim}, spatial size: {self.output_spatial_size}.")
-
+        return backbone, out_channels
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass of the encoder.
-
-        Args:
-            images (torch.Tensor): Input image batch (batch_size, 3, H, W).
-
         Returns:
-            torch.Tensor: Extracted image features (batch_size, num_pixels, encoder_dim).
-                          num_pixels is H * W if the output is spatial, or 1 if flattened.
+            Tensor of shape (Batch, Seq_Len, Channels)
+            where Seq_Len = H * W
         """
-        features = self.cnn_backbone(images)
+        # 1. Extract Features -> (B, C, H_raw, W_raw)
+        features = self.backbone(images)
 
-        if features.dim() == 2: # If backbone already returned flattened (B, C)
-            # Unsqueeze to (B, 1, C) to fit (batch_size, num_pixels, encoder_dim) format where num_pixels=1
-            features = features.unsqueeze(1)
-        elif features.dim() == 4: # (batch_size, channels, H, W)
-            # Permute to (batch_size, H, W, channels)
-            features = features.permute(0, 2, 3, 1)
-            # Reshape to (batch_size, num_pixels, encoder_dim)
-            # .contiguous() is good practice before view/reshape if tensor might be non-contiguous
-            features = features.contiguous().view(features.size(0), -1, features.size(3))
-        else:
-            raise RuntimeError(f"Unexpected feature tensor dimension from CNN backbone: {features.dim()}. Expected 2 or 4.")
+        # 2. Enforce Fixed Grid -> (B, C, 7, 7)
+        features = self.avg_pool(features)
+
+        # 3. Flatten Spatial Dimensions -> (B, C, 49)
+        features = features.flatten(2)
+
+        # 4. Permute for Transformer -> (B, 49, C)
+        features = features.permute(0, 2, 1)
 
         return features
-
-
-
-
-
-
-# # Mock Test for EncoderCNN (using ResNet50 for spatial features)
-# cnn_encoder = EncoderCNN(model_name="resnet50")
-# batch_size = 4
-# input_image = torch.randn(batch_size, 3, 224, 224)
-
-# output_features = cnn_encoder(input_image)
-
-# # Expected output: (Batch, Num_Pixels (7*7=49), Channels (2048))
-# expected_shape = (batch_size, 49, 2048)
-
-# assert output_features.shape == expected_shape, f"EncoderCNN output shape mismatch. Expected {expected_shape}, Got {output_features.shape}"
-# print(f"\n✅ EncoderCNN test (ResNet50) succeeded. Final shape: {output_features.shape}")
