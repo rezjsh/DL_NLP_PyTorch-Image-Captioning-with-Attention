@@ -4,6 +4,9 @@ from src.components.image_preprocessing import ImagePreprocessor
 from src.components.text_preprocessing import TextPreprocessor
 from src.components.dataset import CaptioningDataset
 from typing import Dict
+from torch.utils.data import Subset
+import torch
+
 
 class DatasetPipeline:
     """
@@ -28,6 +31,7 @@ class DatasetPipeline:
 
         datasets = {}
         splits = ['train', 'dev', 'test']
+        torch.manual_seed(42)
 
         for split in splits:
             logger.info(f"Creating CaptioningDataset for split: '{split}'...")
@@ -38,6 +42,25 @@ class DatasetPipeline:
                     image_preprocessor=image_preprocessor,
                     split=split
                 )
+                if split == 'train':
+                    # Assuming config has this attribute (default to 1.0 if not)
+                    train_percentage = getattr(self.config, 'train_percentage', 1.0)
+
+                    if train_percentage < 1.0:
+                        original_len = len(dataset)
+                        subset_size = int(original_len * train_percentage)
+
+
+                        logger.info(f"Subsampling training set: Using {train_percentage*100}% of data.")
+
+                        # Generate random indices
+                        # Set seed for reproducibility if needed: torch.manual_seed(42)
+                        indices = torch.randperm(original_len)[:subset_size].tolist()
+
+                        # Wrap in Subset
+                        dataset = Subset(dataset, indices)
+
+
                 datasets[split] = dataset
                 logger.info(f"Dataset for split '{split}' created successfully. Size: {len(dataset)}.")
             except Exception as e:
