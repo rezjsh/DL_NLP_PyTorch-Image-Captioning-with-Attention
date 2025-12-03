@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image Captioning Demo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>Image Captioning</h1>
+            <p class="subtitle">PyTorch + Transformer with Attention</p>
+          </div>
+        </div>
+        <span class="badge">Demo</span>
+      </header>
+
+      <section class="card panel">
+        <div class="grid">
+          <div>
+            <form class="form" method="POST" enctype="multipart/form-data">
+              <div class="field">
+                <label for="image">Upload Image</label>
+                <div class="input-file">
+                  <input id="image" type="file" name="image" accept="image/*" required />
+                </div>
+                <p class="helper">Supported: .png, .jpg, .jpeg — Max 16MB</p>
+              </div>
+              <div>
+                <button type="submit" class="btn">Generate Caption</button>
+              </div>
+            </form>
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="alert error">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+          </div>
+
+          <div class="result">
+            {% if filename %}
+            <div class="figure">
+              <img src="{{ url_for('main.display_image', filename=filename) }}" alt="Uploaded image preview" />
+              <div class="caption">
+                <strong>Caption:</strong>
+                <span>{{ caption }}</span>
+              </div>
+            </div>
+            {% else %}
+              <p class="helper">Your generated caption will appear here after upload.</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
