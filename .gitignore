@@ -210,3 +210,5 @@ models/*.onnx
 .DS_Store
 Thumbs.db
 data/
+artifacts/
+uploads/
