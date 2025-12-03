@@ -89,7 +89,8 @@ class ConfigurationManager(metaclass=SingletonMeta):
     def get_dataset_config(self) -> CaptioningDatasetConfig:
         logger.info("Getting dataset config")
         config = self.config.create_dataset
-        logger.info(f"Dataset config: {config}")
+        params = self.params.create_dataset
+        logger.info(f"Dataset config: {config} with params: {params}")
 
         dataset_config = CaptioningDatasetConfig(
             dataset_base_dir=Path(config.dataset_base_dir),
@@ -97,7 +98,8 @@ class ConfigurationManager(metaclass=SingletonMeta):
             dev_images_file=config.dev_images_file,
             test_images_file=config.test_images_file,
             images_dir=Path(config.images_dir),
-            caption_path=Path(config.caption_path)
+            caption_path=Path(config.caption_path),
+            train_percentage=params.train_percentage
         )
         logger.info(f"Dataset config created: {dataset_config}")
 
@@ -193,7 +195,7 @@ class ConfigurationManager(metaclass=SingletonMeta):
             report_dir=Path(config.report_dir),
             model_save_prefix=config.model_save_prefix,
             num_epochs=params.num_epochs,
-            learning_rate=params.learning_rate,
+            learning_rate=float(params.learning_rate),
             weight_decay=float(params.weight_decay),
             save_every_epochs=params.save_every_epochs,
             early_stop_patience=params.early_stop_patience,
