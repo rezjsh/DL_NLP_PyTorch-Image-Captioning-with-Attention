@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Tuple
 from src.modules.positional_encoder import PositionalEncoding
 from src.entity.config_entity import DecoderConfig
 from src.utils.logging_setup import logger
@@ -24,7 +24,13 @@ class TransformerDecoder(nn.Module):
         self.positional_encoding = PositionalEncoding(self.config.d_model, max_len=self.config.max_len)
         self.dropout = nn.Dropout(self.config.dropout)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=self.config.d_model, nhead=self.config.num_heads, dim_feedforward=self.config.ff_dim, dropout=self.config.dropout, batch_first=True)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=self.config.d_model,
+                                                   nhead=self.config.num_heads,
+                                                   dim_feedforward=self.config.ff_dim,
+                                                   dropout=self.config.dropout,
+                                                   batch_first=True,
+                                                   norm_first=True
+                                                   )
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, self.config.num_transformer_layers)
 
         self.fc = nn.Linear(self.config.d_model, self.config.vocab_size)
@@ -36,13 +42,14 @@ class TransformerDecoder(nn.Module):
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask.to(DEVICE)
 
-    def forward(self, trg: torch.Tensor, memory: torch.Tensor, trg_mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(self, trg: torch.Tensor, memory: torch.Tensor, trg_mask: torch.Tensor = None, tgt_key_padding_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Forward pass of the Transformer Decoder.
         Args:
             trg (torch.Tensor): Target sequence (captions) (batch_size, trg_seq_len).
             memory (torch.Tensor): Encoded image features (batch_size, num_pixels, encoder_dim).
             trg_mask (torch.Tensor, optional): Mask for target sequence (trg_seq_len, trg_seq_len).
+            tgt_key_padding_mask (torch.Tensor, optional): Mask for padding tokens in target (batch_size, trg_seq_len).
         Returns:
             torch.Tensor: Logits for the next word (batch_size, trg_seq_len, vocab_size).
         """
@@ -52,9 +59,99 @@ class TransformerDecoder(nn.Module):
         # If encoder_out already has num_pixels, there's usually no padding for image features
         # unless images themselves were padded to a fixed size and then features extracted.
         # Assuming encoder_out does not contain padding that needs masking.
-        output = self.transformer_decoder(trg_embed, memory, tgt_mask=trg_mask)
-        output = self.fc(output)
+        decoder_output = self.transformer_decoder(trg_embed,
+                                                  memory,
+                                                  tgt_mask=trg_mask,
+                                                  tgt_key_padding_mask=tgt_key_padding_mask)
+        # Clone to prevent RuntimeError related to CUDAGraphs and tensor overwriting.
+        output = self.fc(decoder_output.clone())
         return output
+
+    def batch_generate_caption(self,
+                               encoder_out: torch.Tensor,
+                               vocab: Any,
+                               beam_size: int = 3,
+                               max_len: int = 50
+                               ) -> Tuple[List[List[str]], Any]:
+        """
+        Vectorized Beam Search generation for a batch of images using Transformer architecture.
+        """
+        with torch.no_grad():
+            B = encoder_out.size(0)
+            V = len(vocab)
+            device = encoder_out.device
+            sos_idx = vocab.stoi["<SOS>"]
+            eos_idx = vocab.stoi["<EOS>"]
+            pad_idx = vocab.stoi["<PAD>"]
+
+            # 1. EXPAND ENCODER OUTPUT: (B * k, num_pixels, encoder_dim)
+            memory_expanded = encoder_out.repeat_interleave(beam_size, dim=0)
+
+            # 2. INITIALIZATION
+            sequences = torch.full((B, beam_size, max_len), pad_idx, dtype=torch.long, device=device)
+            sequences[:, :, 0] = sos_idx
+
+            beam_scores = torch.zeros((B, beam_size), device=device)
+            beam_scores[:, 1:] = float('-inf')
+            beam_scores = beam_scores.view(-1) # Flatten to (B * k)
+
+            # 3. DECODING LOOP
+            for step in range(1, max_len):
+
+                # Input sequence up to the current step: (B * k, step)
+                input_seq_flat = sequences[:, :, :step].reshape(B * beam_size, step)
+
+                # A. Generate Causal Mask
+                trg_mask = self._generate_square_subsequent_mask(step)
+
+                # B. Forward Pass: predictions (B * k, step, vocab_size)
+                predictions = self.forward(trg=input_seq_flat,
+                                           memory=memory_expanded,
+                                           trg_mask=trg_mask,
+                                           tgt_key_padding_mask=None)
+
+                # Get logits for the LAST token: (B * k, vocab_size)
+                log_probs = F.log_softmax(predictions[:, -1, :], dim=-1)
+
+                # C. Combine Scores
+                log_probs = log_probs + beam_scores.unsqueeze(1)
+
+                # D. Top-K selection (Reshape: B, k * V)
+                log_probs_reshaped = log_probs.view(B, -1)
+                topk_scores, topk_indices = log_probs_reshaped.topk(beam_size, dim=1)
+
+                # E. Update Scores & Decode Indices
+                beam_scores = topk_scores.view(-1)
+                prev_beam_indices = topk_indices // V
+                word_indices = topk_indices % V
+
+                # F. Reorder Sequences
+                batch_base_indices = torch.arange(B, device=device).view(-1, 1).repeat(1, beam_size)
+                global_beam_indices = (batch_base_indices * beam_size) + prev_beam_indices
+                global_beam_indices = global_beam_indices.view(-1)
+
+                current_sequences = sequences.view(B * beam_size, max_len)
+                current_sequences = current_sequences[global_beam_indices]
+                current_sequences[:, step] = word_indices.view(-1)
+                sequences = current_sequences.view(B, beam_size, max_len)
+
+                # G. Early Stop Check
+                if (word_indices == eos_idx).all():
+                    break
+
+            # 4. FINALIZE
+            best_sequences = sequences[:, 0, :]
+
+            final_captions = []
+            for i in range(B):
+                words = []
+                for idx in best_sequences[i].tolist():
+                    if idx == eos_idx: break
+                    if idx not in [pad_idx, sos_idx]:
+                        words.append(vocab.itos[idx])
+                final_captions.append(words)
+
+            return final_captions, None
 
     def generate_caption(self, encoder_out: torch.Tensor, vocab, max_len: int = 50, beam_size: int = 1) -> Tuple[List[str], torch.Tensor]:
         """
@@ -75,8 +172,11 @@ class TransformerDecoder(nn.Module):
             encoder_out = encoder_out.to(DEVICE)
             batch_size = encoder_out.size(0) # Should be 1 for single image inference
 
+            if encoder_out.dim() == 2: # Handle (num_pixels, dim) input by adding batch dim
+                encoder_out = encoder_out.unsqueeze(0)
+
             if batch_size != 1:
-                logger.error("`generate_caption` expects a single image tensor (batch_size=1).")
+                logger.error("`generate_caption` expects a single image tensor (batch_size=1).`")
                 raise ValueError("Batch size must be 1 for single image caption generation.")
 
             sos_idx = vocab.stoi["<SOS>"]
@@ -93,9 +193,13 @@ class TransformerDecoder(nn.Module):
                     trg_tensor = torch.LongTensor(sequence).unsqueeze(0).to(DEVICE) # (1, current_seq_len)
                     trg_mask = self._generate_square_subsequent_mask(trg_tensor.size(1))
 
+                    # Create a dummy tgt_key_padding_mask for inference (no padding in generated sequence yet)
+                    # It should be all False (not masked) for the tokens generated so far.
+                    tgt_key_padding_mask = torch.zeros(trg_tensor.size(0), trg_tensor.size(1), dtype=torch.bool, device=DEVICE)
+
                     # Forward pass
                     # predictions: (1, current_seq_len, vocab_size)
-                    predictions = self.forward(trg_tensor, encoder_out, trg_mask)
+                    predictions = self.forward(trg_tensor, encoder_out, trg_mask, tgt_key_padding_mask)
 
                     # Get the last token's prediction logits
                     next_token_logits = predictions[:, -1, :] # (1, vocab_size)
@@ -134,8 +238,11 @@ class TransformerDecoder(nn.Module):
                         trg_tensor = torch.LongTensor(current_sequence).unsqueeze(0).to(DEVICE) # (1, current_seq_len)
                         trg_mask = self._generate_square_subsequent_mask(trg_tensor.size(1))
 
+                        # Create a dummy tgt_key_padding_mask for inference (no padding in generated sequence yet)
+                        tgt_key_padding_mask = torch.zeros(trg_tensor.size(0), trg_tensor.size(1), dtype=torch.bool, device=DEVICE)
+
                         # Forward pass: predictions (1, current_seq_len, vocab_size)
-                        predictions = self.forward(trg_tensor, encoder_out, trg_mask)
+                        predictions = self.forward(trg_tensor, encoder_out, trg_mask, tgt_key_padding_mask)
 
                         # Get logits for the last generated token
                         next_token_logits = predictions[:, -1, :] # (1, vocab_size)
