@@ -1,4 +1,3 @@
-from src.utils.logging_setup import logger
 import torch
 from src.utils.logging_setup import logger
 from typing import List, Tuple, Optional
@@ -44,7 +43,7 @@ class MyCollate:
         valid_batch = [item for item in batch if item is not None]
 
         if not valid_batch:
-            # logger.warning("Batch is empty after filtering out failed samples. Returning empty Tensors.")
+            logger.warning("Batch is empty after filtering out failed samples. Returning empty Tensors.")
             # Return empty tensors with correct dtype for safety in downstream code
             return torch.tensor([], dtype=torch.float), torch.tensor([], dtype=torch.long), torch.tensor([], dtype=torch.long)
 
@@ -73,6 +72,6 @@ class MyCollate:
             targets, batch_first=True, padding_value=self.pad_idx
         )
 
-        # logger.debug(f"Collated batch shapes: Images {imgs_tensor.shape}, Captions {padded_captions_tensor.shape}")
+        logger.debug(f"Collated batch shapes: Images {imgs_tensor.shape}, Captions {padded_captions_tensor.shape}")
 
         return imgs_tensor, padded_captions_tensor, lengths_tensor
