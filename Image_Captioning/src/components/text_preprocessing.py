@@ -5,7 +5,7 @@ import spacy
 from collections import Counter
 import re
 from src.utils.logging_setup import logger
-import json 
+import json
 
 class TextPreprocessor:
     """
