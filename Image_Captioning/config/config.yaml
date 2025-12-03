@@ -42,3 +42,4 @@ training:
 inference:
   model_path: "artifacts/models/transformer_caption_model_best_model.pth"
   report_dir: "artifacts/reports/"
+  model_ckpt_path: "artifacts/models/transformer_caption_model_best_model.pth"
