@@ -7,18 +7,25 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from src.entity.config_entity import ModelTrainingConfig
-from src.utils.logging_setup import logger 
-from src.utils.device import DEVICE 
+from src.utils.logging_setup import logger
+from src.utils.device import DEVICE
 from torch.amp import autocast, GradScaler
 
 class Trainer:
     def __init__(self, config: ModelTrainingConfig, model, train_loader: DataLoader, val_loader: DataLoader=None, text_preprocessor=None):
         self.config = config
         self.model = model.to(DEVICE)
-        if DEVICE.type == 'cuda' and hasattr(torch, 'compile'):
-            # Compiling the model for maximum performance. 'bwd' is often the most stable mode.
-            self.model = torch.compile(self.model, mode="reduce-overhead")
-            logger.info("Model successfully compiled using torch.compile for performance.")
+        # Temporarily disable torch.compile to avoid CUDA Graphs RuntimeError
+        # if DEVICE.type == 'cuda' and hasattr(torch, 'compile'):
+        #     # Compiling the model for maximum performance. 'bwd' is often the most stable mode.
+        #     self.model = torch.compile(self.model, mode="reduce-overhead")
+        #     logger.info("Model successfully compiled using torch.compile for performance.")
+
+        # If you still want to use torch.compile in a less aggressive mode, you can try:
+        # if DEVICE.type == 'cuda' and hasattr(torch, 'compile'):
+        #     self.model = torch.compile(self.model, mode="default")
+        #     logger.info("Model successfully compiled using torch.compile (default mode) for performance.")
+
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.text_preprocessor = text_preprocessor
@@ -30,14 +37,14 @@ class Trainer:
              self.pad_idx = 0 # Default to 0 or another safe value if vocab isn't set up yet
 
         self.criterion = nn.CrossEntropyLoss(ignore_index=self.pad_idx)
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.config.learning_rate, weight_decay=self.config.weight_decay)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.config.learning_rate, weight_decay=self.config.weight_decay)
 
         # Use max(1, ...) to ensure patience is at least 1
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', patience=max(1, self.config.early_stop_patience // 2), factor=0.5, threshold=0.0001)
 
         self.best_val_loss = float('inf')
         self.early_stop_counter = 0
-        self.scaler = GradScaler('cuda')
+        self.scaler = GradScaler(enabled=(DEVICE.type == 'cuda'))
         # Ensure model_dir and report_dir exist
         os.makedirs(self.config.model_dir, exist_ok=True)
         os.makedirs(self.config.report_dir, exist_ok=True)
@@ -73,6 +80,10 @@ class Trainer:
             # but are kept to match the model's expected signature.
             lengths = lengths.to(DEVICE)
             with autocast(device_type=DEVICE.type, enabled=use_amp):
+                # Mark the beginning of a new step for CUDA Graphs if torch.compile is active
+                # This is only needed if torch.compile is active. If it's disabled, this can be removed.
+                if DEVICE.type == 'cuda' and hasattr(torch, 'compiler') and hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+                    torch.compiler.cudagraph_mark_step_begin()
                 # 1. Forward Pass: predictions shape (batch_size, max_len-1, vocab_size)
                 # The model's forward pass should correctly handle the length of the decoder_input
                 predictions = self.model(images, decoder_input, lengths)
@@ -104,6 +115,7 @@ class Trainer:
                     if use_amp:
                         self.scaler.unscale_(self.optimizer) # Unscale gradients before clipping
                     nn.utils.clip_grad_norm_(self.model.parameters(), self.config.clip_grad_norm)
+
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
