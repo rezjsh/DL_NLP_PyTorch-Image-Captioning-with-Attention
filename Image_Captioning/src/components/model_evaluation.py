@@ -3,18 +3,20 @@ import os
 import pandas as pd
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from typing import Any, List
-from src.utils.device import DEVICE
+from typing import Any, List, Dict
 
+# Detect device automatically
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Placeholder function to calculate evaluation metrics
-def calculate_metrics(references: List[List[str]], hypotheses: List[str]) -> dict:
+# --- Metric Calculation Placeholder ---
+def calculate_metrics(references: List[List[str]], hypotheses: List[str]) -> Dict[str, float]:
     """
-    Placeholder for actual metric calculation (e.g., using pycocoevalcap, NLTK).
-    References are list[list[str]] (e.g., 5 captions per image).
-    Hypotheses are list[str] (1 generated caption per image).
+    Computes evaluation metrics.
+    Args:
+        references: List of list of strings (ground truth captions).
+        hypotheses: List of strings (generated captions).
     """
-    # Simple length-based check placeholder
+    # Placeholder: Average length calculation
     avg_ref_len = sum(len(ref[0].split()) for ref in references) / len(references) if references else 0
     avg_hyp_len = sum(len(hyp.split()) for hyp in hypotheses) / len(hypotheses) if hypotheses else 0
 
@@ -22,38 +24,27 @@ def calculate_metrics(references: List[List[str]], hypotheses: List[str]) -> dic
         "Num_Samples": len(hypotheses),
         "Avg_Reference_Length": round(avg_ref_len, 2),
         "Avg_Hypothesis_Length": round(avg_hyp_len, 2),
-        "BLEU_4_Score": 0.0, 
-        "CIDEr_Score": 0.0    
+        "BLEU_4_Score": 0.0, # Replace with actual NLTK/COCO calls
+        "CIDEr_Score": 0.0   # Replace with actual NLTK/COCO calls
     }
-# --- End Placeholders ---
-
+# --------------------------------------
 
 class ModelEvaluator:
     """
-    Class to handle the evaluation of the trained Image Captioning Model
-    on a test dataset using beam search inference.
+    Handles evaluation of the Image Captioning Model using efficient Batch Inference.
     """
     def __init__(self, config: Any, model: Any, test_loader: DataLoader, text_preprocessor: Any) -> None:
-        """
-        Initializes the ModelEvaluator.
-        """
         self.config = config
         self.model = model.to(DEVICE)
         self.test_loader = test_loader
-        self.vocab = text_preprocessor # Vocabulary object for decoding
+        self.vocab = text_preprocessor
 
-        # Ensure the report directory exists
+        # Create output directory
         os.makedirs(self.config.report_dir, exist_ok=True)
-
         self._load_model_weights()
-        # logger.info(f"ModelEvaluator initialized. Will evaluate on test_loader split.")
-
 
     def _load_model_weights(self):
-        """
-        Loads the trained model weights from the configured path,
-        removing '_orig_mod.' prefix if present in the state_dict keys.
-        """
+        """Loads weights, handling potential key prefixes from DataParallel."""
         model_path = self.config.model_path
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model weights not found at: {model_path}")
@@ -61,101 +52,91 @@ class ModelEvaluator:
         try:
             state_dict = torch.load(model_path, map_location=DEVICE)
 
+            # clean keys
             new_state_dict = {}
             for k, v in state_dict.items():
-                # Remove the '_orig_mod.' prefix if it exists (common with torch.compile)
-                if k.startswith('_orig_mod.'):
-                    new_key = k[len('_orig_mod.'):]
-                else:
-                    new_key = k
-                new_state_dict[new_key] = v
+                k = k.replace('_orig_mod.', '').replace('module.', '')
+                new_state_dict[k] = v
 
             self.model.load_state_dict(new_state_dict, strict=True)
-            self.model.eval() # Set model to evaluation mode
-            # logger.info(f"Successfully loaded model weights from: {model_path}")
-
+            self.model.eval()
         except Exception as e:
-            raise RuntimeError(f"Error loading model weights after remapping: {e}")
+            raise RuntimeError(f"Error loading model weights: {e}")
 
     @torch.no_grad()
     def evaluate(self) -> dict:
         """
-        Runs inference on the test set, generates captions, and calculates metrics.
-
-        Assumes DataLoader yields: (images: Tensor, targets: list[list[str]], lengths: Tensor)
-        where targets[i] is a list of N ground-truth string captions for image i.
+        Runs batch inference on the test set.
+        Significantly faster than single-image iteration.
         """
-        # logger.info("Starting model evaluation and caption generation...")
+        hypotheses: List[str] = []
+        references: List[List[str]] = []
 
-        hypotheses = []  # Generated captions (list[str])
-        references = []  # Ground truth captions (list[list[str]])
+        self.model.eval()
 
-        self.model.eval() # Ensure model is in evaluation mode
+        print(f"Starting evaluation on {DEVICE}...")
 
-        # Iterate over the test dataset
-        for images, captions_tensor, lengths in tqdm(self.test_loader, desc="Generating Captions"):
+        for images, captions_tensor, lengths in tqdm(self.test_loader, desc="Evaluating"):
 
-            # Move images to the device
+            # 1. Move batch to GPU
             images = images.to(DEVICE)
+            batch_size = images.size(0)
 
-            # --- Inference/Caption Generation ---
-            # Iterate through each image in the batch
-            for i, img_tensor in enumerate(images):
-                # The generate_caption method expects a single image (1, C, H, W)
-                img_tensor_single = img_tensor.unsqueeze(0)
-
-                # Call the model's generation method (using beam search)
-                # Assumes self.model.generate_caption returns (list_of_words, attention_weights)
-                caption_words, _ = self.model.generate_caption(
-                    image_tensor=img_tensor_single,
+            # 2. Run Batch Inference
+            # Checks if the optimized method exists, otherwise falls back to a slower loop
+            if hasattr(self.model, 'batch_generate_caption'):
+                batch_words, _ = self.model.batch_generate_caption(
+                    image_tensor=images,
                     vocab=self.vocab,
-                    beam_size=self.config.beam_size
+                    beam_size=self.config.beam_size,
+                    max_len=self.config.max_len if hasattr(self.config, 'max_len') else 20
                 )
+            else:
+                # FAST FALLBACK: Loop on GPU (if batch method not implemented)
+                batch_words = []
+                for i in range(batch_size):
+                    # Unsqueeze creates (1, C, H, W) without moving memory to CPU
+                    words, _ = self.model.generate_caption(
+                        images[i].unsqueeze(0),
+                        self.vocab,
+                        self.config.beam_size
+                    )
+                    batch_words.append(words)
 
-                # Convert the list of words back to a sentence string
-                generated_caption = " ".join(caption_words)
-                hypotheses.append(generated_caption)
+            # 3. Process Results
+            # Join words into sentences
+            hypotheses.extend([" ".join(words) for words in batch_words])
 
-                # --- Collect References ---
-                # `captions_tensor` from the DataLoader contains the numericalized, padded target caption.
-                # We need to denumericalize this tensor to get a string reference.
-                # `calculate_metrics` expects List[List[str]], so we provide a list containing one string reference.
+            # 4. Process References (Ground Truth)
+            for i in range(batch_size):
+                numericalized_ref = captions_tensor[i]
 
-                numericalized_ref_caption = captions_tensor[i] # This is a 1D torch.Tensor
+                # Filter <PAD>
+                ref_ids = [idx.item() for idx in numericalized_ref if idx.item() != self.vocab.stoi["<PAD>"]]
 
-                # Convert to list of integers, filtering out padding tokens
-                ref_word_ids = [idx.item() for idx in numericalized_ref_caption if idx.item() != self.vocab.stoi["<PAD>"]]
+                # Convert to string
+                raw_ref = self.vocab.denumericalize(ref_ids)
 
-                # Denumericalize the sequence of valid IDs
-                # The `denumericalize` method returns a string including <SOS> and <EOS>.
-                raw_ref_sentence = self.vocab.denumericalize(ref_word_ids)
+                # Clean <SOS>/<EOS>
+                clean_ref = " ".join([w for w in raw_ref.split() if w not in ["<SOS>", "<EOS>"]])
 
-                # Filter out special tokens from the string (e.g., <SOS>, <EOS>)
-                # by splitting the sentence and then joining again.
-                filtered_ref_sentence = " ".join([word for word in raw_ref_sentence.split() if word not in ["<SOS>", "<EOS>"]])
+                references.append([clean_ref])
 
-                # Append a list containing this single reference string to the references list
-                references.append([filtered_ref_sentence])
-
-        # --- Final Validation & Metric Calculation ---
-        if not hypotheses or len(hypotheses) != len(references):
-            # logger.error(f"Mismatch: Collected {len(hypotheses)} hypotheses and {len(references)} references.")
+        # --- Metrics & Saving ---
+        if len(hypotheses) != len(references):
+            print(f"Warning: Size mismatch. Hypotheses: {len(hypotheses)}, References: {len(references)}")
             metrics = {}
         else:
-            # calculate_metrics expects list[list[str]] for references and list[str] for hypotheses
             metrics = calculate_metrics(references, hypotheses)
-            # logger.info(f"Evaluation Metrics: {metrics}")
 
-        # --- Save Report ---
+        # Save CSV
         report_data = {
             "Generated_Caption": hypotheses,
-            # Join multiple references with a delimiter for CSV readability
             "Reference_Captions": [" ||| ".join(refs) for refs in references]
         }
-
         df = pd.DataFrame(report_data)
-        report_file_path = os.path.join(self.config.report_dir, "evaluation_results.csv")
-        df.to_csv(report_file_path, index=False)
-        # logger.info(f"Detailed evaluation results saved to: {report_file_path}")
+        report_path = os.path.join(self.config.report_dir, "evaluation_results.csv")
+        df.to_csv(report_path, index=False)
 
-        return {"metrics": metrics, "report_path": report_file_path}
+        print(f"Evaluation complete. Results saved to {report_path}")
+        return {"metrics": metrics, "report_path": report_path}
