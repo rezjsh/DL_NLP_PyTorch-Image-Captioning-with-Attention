@@ -111,6 +111,19 @@ if __name__ == '__main__':
         logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
 
 
+        # # --- Single Prediction Stage ---
+        # STAGE_NAME = "Single Prediction Stage"
+        # logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
+        # prediction_pipeline = SinglePredictionPipeline(config=config_manager)
+        # generated_caption = prediction_pipeline.run_pipeline(
+        #     model=model,
+        #     text_preprocessor=text_preprocessor,
+        #     image_preprocessor=image_processor,
+        #     image_path='/content/giraffe.jpg'
+        #     )
+        # logger.info(f"Generated Caption: {generated_caption}")
+        # logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
+
 
     except Exception as e:
         logger.error(f"Error occurred during {STAGE_NAME} stage: {e}")
