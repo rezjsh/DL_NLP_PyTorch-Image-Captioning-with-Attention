@@ -12,54 +12,57 @@ image_preprocessing:
   normalize_mean: [0.485, 0.456, 0.406]
   normalize_std: [0.229, 0.224, 0.225]
 
+create_dataset:
+  train_percentage: 0.8
+
 data_loader:
   image_size: [224, 224] # This parameter is not directly used in MyDataLoader, consider if needed.
-  batch_size: 8
+  batch_size: 32
   shuffle: True
-  num_workers: 2
+  num_workers: 1
   pin_memory: True
   drop_last: True
 
 encoder:
   cnn_model_name: "efficientnet_b3"
-  embed_dim: 1280 # Desired embedding dimension for the Transformer
-  num_transformer_layers: 3
+  embed_dim: 512 # Desired embedding dimension for the Transformer
+  num_transformer_layers: 4
   num_heads: 8
-  ff_dim: 2048 # Feed-forward network dimension in Transformer
-  dropout: 0.1
+  ff_dim: 1024 # Feed-forward network dimension in Transformer
+  dropout: 0.5
   fine_tune_cnn: True # Control CNN fine-tuning
   fine_tune_transformer: True # Control Transformer fine-tuning
 
 decoder:
   # vocab_size will be dynamically determined and passed
-  max_len: 128 # Maximum length for captions (including SOS/EOS)
-  d_model: 1280 # This should match the encoder's embed_dim if no projection is used
+  max_len: 50 # Maximum length for captions (including SOS/EOS)
+  d_model: 512 # This should match the encoder's embed_dim if no projection is used
   num_heads: 8
-  ff_dim: 2048
-  num_transformer_layers: 3
-  dropout: 0.1
+  ff_dim: 1024
+  num_transformer_layers: 4
+  dropout: 0.5
 
 encoder_decoder: # New section for overall model config, consolidating some parameters
   encoder_type: "cnn_transformer" # or "cnn"
   cnn_backbone: "efficientnet_b3" # This should ideally be linked to encoder.cnn_model_name
-  d_model: 1280 # This should be the common dimension for encoder and decoder
+  d_model: 512 # This should be the common dimension for encoder and decoder
   fine_tune_cnn: True
-  max_caption_length: 64 # Max length for decoder input/output padding
-  num_encoder_transformer_layers: 3 # To match encoder.num_transformer_layers
-  num_decoder_transformer_layers: 3 # To match decoder.num_transformer_layers
+  max_caption_length: 50 # Max length for decoder input/output padding
+  num_encoder_transformer_layers: 4 # To match encoder.num_transformer_layers
+  num_decoder_transformer_layers: 4 # To match decoder.num_transformer_layers
   num_heads: 8 # To match encoder.num_heads and decoder.num_heads
-  ff_dim: 2048 # To match encoder.ff_dim and decoder.ff_dim
-  dropout: 0.1 # To match encoder.dropout and decoder.dropout
+  ff_dim: 1024 # To match encoder.ff_dim and decoder.ff_dim
+  dropout: 0.5 # To match encoder.dropout and decoder.dropout
 
 training:
   model_name: "transformer_captioning_model"
   model_save_prefix: "transformer_caption_model"
-  num_epochs: 30
-  learning_rate: 0.0001
-  weight_decay: 0.0001
+  num_epochs: 20
+  learning_rate: 3e-5
+  weight_decay: 1e-5
   save_every_epochs: 2
   early_stop_patience: 5
-  gradient_accumulation_steps: 1 # Number of batches to accumulate gradients over
+  gradient_accumulation_steps: 2 # Number of batches to accumulate gradients over
   clip_grad_norm: 1.0 # Gradient clipping value (0 for no clipping)
 
 inference:
