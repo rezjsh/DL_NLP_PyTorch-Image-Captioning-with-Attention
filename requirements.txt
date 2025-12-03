@@ -28,3 +28,6 @@ transformers
 # Packaging
 setuptools
 wheel
+
+-e .
+
