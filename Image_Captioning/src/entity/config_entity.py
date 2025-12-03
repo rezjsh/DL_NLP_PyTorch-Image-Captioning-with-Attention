@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataIngestionConfig:
     download_dir: Path
     images_zip_url: str
@@ -17,7 +17,7 @@ class DataIngestionConfig:
     images_dir: str
     caption_path: str
 
-@dataclass
+@dataclass(frozen=True)
 class DataValidationConfig:
     dataset_base_dir: Path
     images_dir: Path
@@ -25,7 +25,7 @@ class DataValidationConfig:
     image_extensions: list[str]
     validation_report_file: Path
 
-@dataclass
+@dataclass(frozen=True)
 class TextPreprocessingConfig:
     freq_threshold: int
     remove_special_characters: bool
@@ -33,7 +33,7 @@ class TextPreprocessingConfig:
     remove_stopwords: bool
     lemmatization: bool
 
-@dataclass
+@dataclass(frozen=True)
 class ImagePreprocessingConfig:
     resize_size: list[int]
     random_crop_size: list[int]
@@ -41,7 +41,7 @@ class ImagePreprocessingConfig:
     normalize_std: list[float]
 
 
-@dataclass
+@dataclass(frozen=True)
 class CaptioningDatasetConfig:
     images_dir: Path
     caption_path: Path
@@ -49,9 +49,10 @@ class CaptioningDatasetConfig:
     train_images_file: str
     dev_images_file: str
     test_images_file: str
+    train_percentage: float=.5
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataLoaderConfig:
     batch_size: int
     shuffle: bool
@@ -60,7 +61,7 @@ class DataLoaderConfig:
     drop_last: bool
 
 
-@dataclass
+@dataclass(frozen=True)
 class EncoderConfig:
     cnn_model_name: str
     embed_dim: int
@@ -71,7 +72,7 @@ class EncoderConfig:
     fine_tune_cnn: bool
     fine_tune_transformer: bool
 
-@dataclass
+@dataclass(frozen=True)
 class DecoderConfig:
     vocab_size: int
     dropout: float
@@ -82,7 +83,7 @@ class DecoderConfig:
     num_transformer_layers: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class EncoderDecoderConfig:
     encoder_type: str
     cnn_backbone: str
@@ -95,7 +96,7 @@ class EncoderDecoderConfig:
     ff_dim: int
     dropout: float
 
-@dataclass
+@dataclass(frozen=True)
 class ModelTrainingConfig:
     model_dir: Path
     model_name: str
